@@ -29,7 +29,7 @@ enum Error {
 
 lazy_static! {
     static ref COMMAND: Command = Command::from_args();
-    static ref DICTIONARY: Vec<String> = load_dictionary();
+    static ref SOURCES: Vec<Vec<String>> = load_sources();
 }
 
 pub fn main() {
@@ -59,7 +59,7 @@ fn process_input_parallel<I: Iterator<Item=Line>>(input: &mut I) {
 
         work_pieces += 1;
         pool.execute(move || {
-            let errors = line.errors(|word| DICTIONARY.binary_search(&word.to_lowercase()).is_err());
+            let errors = line.errors(is_error);
 
             match errors.len() {
                 0 => tx.send(None).unwrap(),
@@ -83,7 +83,22 @@ fn process_input_parallel<I: Iterator<Item=Line>>(input: &mut I) {
     }
 }
 
-fn load_dictionary() -> Vec<String> {
+fn is_error(word: &str) -> bool {
+    SOURCES.iter().all(|source| source.binary_search(&word.to_lowercase()).is_err())
+}
+
+fn load_sources() -> Vec<Vec<String>> {
+    let mut sources = vec![load_sys_dict()];
+    if let Ok(reader) = File::open("./.spelling").map(|file| BufReader::new(file)) {
+        sources.push(reader.lines()
+            .filter_map(|line| line.ok())
+            .map(|line| line.trim().to_owned())
+            .collect());
+    }
+    sources
+}
+
+fn load_sys_dict() -> Vec<String> {
     match File::open(COMMAND.dict_path()).map(|file| BufReader::new(file)) {
         Ok(reader) => reader.lines()
             .filter_map(|line| line.ok())

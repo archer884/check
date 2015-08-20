@@ -15,6 +15,7 @@ impl Command {
     pub fn from_args() -> Command {
         let mut opts = Options::new();
         opts.optopt("w", "words", "set dictionary file path", "WORDS");
+        opts.optflag("p", "print", "print dictionary contents");
 
         let args: Vec<_> = ::std::env::args().collect();
         match opts.parse(&args[1..]) {
