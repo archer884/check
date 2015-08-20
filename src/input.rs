@@ -1,4 +1,9 @@
+use regex::Regex;
 use std::fmt;
+
+lazy_static! {
+    static ref WORD_PATTERN: Regex = Regex::new(r"([A-z]+)('[A-z]+)?\.?").unwrap();
+}
 
 pub struct Line {
     pub number: usize,
@@ -14,12 +19,11 @@ impl Line {
     }
 
     pub fn words(&self) -> Vec<Word> {
-        self.content.split_whitespace()
-            .map(|word| Word {
+        WORD_PATTERN.captures_iter(&self.content)
+            .filter_map(|cap| cap.at(0).map(|content| Word {
                 number: self.number,
-                content: word.trim_matches(|c: char| !c.is_alphabetic()).to_owned(),
-            })
-            .filter(|word| word.content.len() > 0)
+                content: content.to_owned()
+            }))
             .collect()
     }
 }
@@ -32,6 +36,6 @@ pub struct Word {
 
 impl fmt::Display for Word {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Line {:4}: {}", self.number, self.content)
+        write!(f, "Line {:4}: {}", self.number, self.content.trim_right_matches('.'))
     }
 }
