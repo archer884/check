@@ -14,7 +14,6 @@ lazy_static! {
 //      test bench::access_lazy_static  ... bench:       0 ns/iter (+/- 1)
 //
 // So I'm gonna keep doing it that way. :p
-//
 
 #[bench]
 fn access_lazy_static(b: &mut test::Bencher) {
