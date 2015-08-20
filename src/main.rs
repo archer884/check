@@ -5,6 +5,7 @@
 
 extern crate getopts;
 extern crate num_cpus;
+extern crate regex;
 extern crate threadpool;
 
 mod command;
@@ -59,8 +60,13 @@ fn process_input_parallel<I: Iterator<Item=Line>>(input: &mut I) {
 
         work_pieces += 1;
         pool.execute(move || {
+            // The word pattern allows periods to be stored with words because they are
+            // part of some "words," like "St." and "Mr." This second stage allows us to
+            // determine if a word would have been found in the dictionary had we not stuck
+            // a period on it for no damn reason.
             let mut errors = line.words();
-            errors.retain(|word| DICTIONARY.binary_search(&word.content.to_lowercase()).is_err());
+            errors.retain(|word| DICTIONARY.binary_search(&word.content.to_lowercase()).is_err()
+                && DICTIONARY.binary_search(&word.content.trim_right_matches('.').to_lowercase()).is_err());
 
             match errors.len() {
                 0 => tx.send(None).unwrap(),

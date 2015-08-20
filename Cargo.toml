@@ -7,4 +7,5 @@ authors = ["J/A <archer884@gmail.com>"]
 getopts = "*"
 lazy_static = "*"
 num_cpus = "*"
+regex = "*"
 threadpool = "*"
