@@ -15,6 +15,7 @@ impl Line {
 
     pub fn words(&self) -> Vec<Word> {
         self.content.split_whitespace()
+            .flat_map(|word| word.split('-'))
             .map(|word| Word {
                 number: self.number,
                 content: word.trim_matches(|c: char| !c.is_alphabetic()).to_owned(),
