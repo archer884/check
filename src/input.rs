@@ -13,14 +13,15 @@ impl Line {
         }
     }
 
-    pub fn words(&self) -> Vec<Word> {
+    pub fn errors<F: Fn(&str) -> bool>(&self, f: F) -> Vec<Word> {
         self.content.split_whitespace()
             .flat_map(|word| word.split('-'))
+            .map(|word| word.trim_matches(|c: char| !c.is_alphabetic()))
+            .filter(|word| word.len() > 0 && f(word))
             .map(|word| Word {
                 number: self.number,
-                content: word.trim_matches(|c: char| !c.is_alphabetic()).to_owned(),
+                content: word.to_owned(),
             })
-            .filter(|word| word.content.len() > 0)
             .collect()
     }
 }

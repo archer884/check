@@ -59,8 +59,7 @@ fn process_input_parallel<I: Iterator<Item=Line>>(input: &mut I) {
 
         work_pieces += 1;
         pool.execute(move || {
-            let mut errors = line.words();
-            errors.retain(|word| DICTIONARY.binary_search(&word.content.to_lowercase()).is_err());
+            let errors = line.errors(|word| DICTIONARY.binary_search(&word.to_lowercase()).is_err());
 
             match errors.len() {
                 0 => tx.send(None).unwrap(),
