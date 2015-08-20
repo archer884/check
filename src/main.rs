@@ -11,7 +11,6 @@ mod input;
 use command::Command;
 use input::Line;
 
-use std::collections::HashSet;
 use std::fs::File;
 use std::io::{ BufRead, BufReader };
 use std::sync::mpsc;
@@ -25,7 +24,7 @@ enum Error {
 
 lazy_static! {
     static ref COMMAND: Command = Command::from_args();
-    static ref DICTIONARY: HashSet<String> = load_dictionary();
+    static ref DICTIONARY: Vec<String> = load_dictionary();
 }
 
 fn main() {
@@ -51,7 +50,7 @@ fn process_input_parallel<I: Iterator<Item=Line>>(input: &mut I) {
         work_pieces += 1;
         pool.execute(move || {
             let mut errors = line.words();
-            errors.retain(|word| !DICTIONARY.contains(&word.content));
+            errors.retain(|word| DICTIONARY.binary_search(&word.content).is_err());
 
             match errors.len() {
                 0 => tx.send(None).unwrap(),
@@ -75,7 +74,7 @@ fn process_input_parallel<I: Iterator<Item=Line>>(input: &mut I) {
     }
 }
 
-fn load_dictionary() -> HashSet<String> {
+fn load_dictionary() -> Vec<String> {
     match File::open(COMMAND.dict_path()).map(|file| BufReader::new(file)) {
         Ok(reader) => reader.lines().filter_map(|line| line.ok()).map(|line| line.trim().to_owned()).collect(),
         _ => {
