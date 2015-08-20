@@ -1,5 +1,11 @@
 use getopts::Options;
 
+#[cfg(unix)]
+const DEFAULT_DICT_PATH: &'static str = "/usr/share/dict/words";
+
+#[cfg(windows)]
+const DEFAULT_DICT_PATH: &'static str  = "C:\\Users\\ja\\Documents\\enable1.txt";
+
 pub struct Command {
     targ_path: String,
     dict_path: String,
@@ -14,8 +20,9 @@ impl Command {
         match opts.parse(&args[1..]) {
             Ok(ref matches) if matches.free.len() == 1 => Command {
                 targ_path: matches.free[0].clone(),
-                dict_path: matches.opt_str("w").unwrap_or("C:\\Users\\ja\\Documents\\enable1.txt".to_owned()),
+                dict_path: matches.opt_str("w").unwrap_or(DEFAULT_DICT_PATH.to_owned()),
             },
+
             Ok(_) | Err(_) => {
                 println!("Invalid arguments: {:?}", args);
                 ::std::process::exit(super::Error::Arguments as i32);

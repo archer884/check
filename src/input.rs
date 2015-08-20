@@ -17,11 +17,14 @@ impl Line {
         self.content.split_whitespace()
             .map(|word| Word {
                 number: self.number,
-                content: word.trim_matches(|c: char| !c.is_alphabetic()).to_lowercase().to_owned(),
-            }).collect()
+                content: word.trim_matches(|c: char| !c.is_alphabetic()).to_owned(),
+            })
+            .filter(|word| word.content.len() > 0)
+            .collect()
     }
 }
 
+#[derive(Debug)]
 pub struct Word {
     pub number: usize,
     pub content: String,

@@ -1,3 +1,5 @@
+#![feature(test)]
+#![allow(unused_features)] // disables warning for unused test feature
 
 #[macro_use] extern crate lazy_static;
 
@@ -7,6 +9,9 @@ extern crate threadpool;
 
 mod command;
 mod input;
+
+#[cfg(test)] extern crate test;
+#[cfg(test)] mod bench;
 
 use command::Command;
 use input::Line;
@@ -27,9 +32,14 @@ lazy_static! {
     static ref DICTIONARY: Vec<String> = load_dictionary();
 }
 
-fn main() {
+pub fn main() {
     let mut input = match File::open(COMMAND.targ_path()).map(|file| BufReader::new(file)) {
-        Ok(reader) => reader.lines().filter_map(|l| l.ok()).enumerate().map(|source| Line::from_source(source)),
+        Ok(reader) => reader.lines()
+            .filter_map(|l| l.ok())
+            .enumerate()
+            .filter(|&(_, ref s)| s.trim().len() > 0)
+            .map(|source| Line::from_source(source)),
+
         _ => {
             println!("Unable to load input: {}", COMMAND.targ_path());
             std::process::exit(Error::Input as i32);
@@ -50,7 +60,7 @@ fn process_input_parallel<I: Iterator<Item=Line>>(input: &mut I) {
         work_pieces += 1;
         pool.execute(move || {
             let mut errors = line.words();
-            errors.retain(|word| DICTIONARY.binary_search(&word.content).is_err());
+            errors.retain(|word| DICTIONARY.binary_search(&word.content.to_lowercase()).is_err());
 
             match errors.len() {
                 0 => tx.send(None).unwrap(),
@@ -76,7 +86,11 @@ fn process_input_parallel<I: Iterator<Item=Line>>(input: &mut I) {
 
 fn load_dictionary() -> Vec<String> {
     match File::open(COMMAND.dict_path()).map(|file| BufReader::new(file)) {
-        Ok(reader) => reader.lines().filter_map(|line| line.ok()).map(|line| line.trim().to_owned()).collect(),
+        Ok(reader) => reader.lines()
+            .filter_map(|line| line.ok())
+            .map(|line| line.trim().to_owned())
+            .collect(),
+
         _ => {
             println!("Unable to load dictionary: {}", COMMAND.dict_path());
             std::process::exit(Error::Dictionary as i32);
