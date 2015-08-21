@@ -1,8 +1,6 @@
 #![feature(test)]
 #![allow(unused_features)] // disables warning for unused test feature
 
-#[macro_use] extern crate lazy_static;
-
 extern crate getopts;
 extern crate num_cpus;
 extern crate threadpool;
@@ -18,6 +16,7 @@ use input::Line;
 
 use std::fs::File;
 use std::io::{ BufRead, BufReader };
+use std::sync::Arc;
 use std::sync::mpsc;
 use threadpool::ThreadPool;
 
@@ -27,13 +26,11 @@ enum Error {
     Input = 3,
 }
 
-lazy_static! {
-    static ref COMMAND: Command = Command::from_args();
-    static ref SOURCES: Vec<Vec<String>> = load_sources();
-}
-
 pub fn main() {
-    let mut input = match File::open(COMMAND.targ_path()).map(|file| BufReader::new(file)) {
+    let command = Command::from_args();
+    let sources = Arc::new(load_sources(&command));
+
+    let mut input = match File::open(command.targ_path()).map(|file| BufReader::new(file)) {
         Ok(reader) => reader.lines()
             .filter_map(|l| l.ok())
             .enumerate()
@@ -41,25 +38,26 @@ pub fn main() {
             .map(|source| Line::from_source(source)),
 
         _ => {
-            println!("Unable to load input: {}", COMMAND.targ_path());
+            println!("Unable to load input: {}", command.targ_path());
             std::process::exit(Error::Input as i32);
         }
     };
 
-    process_input_parallel(&mut input);
+    process_input_parallel(&mut input, &sources);
 }
 
-fn process_input_parallel<I: Iterator<Item=Line>>(input: &mut I) {
+fn process_input_parallel<I: Iterator<Item=Line>>(input: &mut I, sources: &Arc<Vec<Vec<String>>>) {
     let pool = ThreadPool::new(num_cpus::get());
     let (tx, rx) = mpsc::channel();
 
     let mut work_pieces = 0;
     for line in input {
         let tx = tx.clone();
+        let sources = sources.clone();
 
         work_pieces += 1;
         pool.execute(move || {
-            let errors = line.errors(is_error);
+            let errors = line.errors(|word| is_error(word, &sources));
 
             match errors.len() {
                 0 => tx.send(None).unwrap(),
@@ -83,12 +81,12 @@ fn process_input_parallel<I: Iterator<Item=Line>>(input: &mut I) {
     }
 }
 
-fn is_error(word: &str) -> bool {
-    SOURCES.iter().all(|source| source.binary_search(&word.to_lowercase()).is_err())
+fn is_error(word: &str, sources: &Arc<Vec<Vec<String>>>) -> bool {
+    sources.iter().all(|source| source.binary_search(&word.to_lowercase()).is_err())
 }
 
-fn load_sources() -> Vec<Vec<String>> {
-    let mut sources = vec![load_sys_dict()];
+fn load_sources(command: &Command) -> Vec<Vec<String>> {
+    let mut sources = vec![load_sys_dict(command)];
     if let Ok(reader) = File::open("./.spelling").map(|file| BufReader::new(file)) {
         sources.push(reader.lines()
             .filter_map(|line| line.ok())
@@ -98,15 +96,15 @@ fn load_sources() -> Vec<Vec<String>> {
     sources
 }
 
-fn load_sys_dict() -> Vec<String> {
-    match File::open(COMMAND.dict_path()).map(|file| BufReader::new(file)) {
+fn load_sys_dict(command: &Command) -> Vec<String> {
+    match File::open(command.dict_path()).map(|file| BufReader::new(file)) {
         Ok(reader) => reader.lines()
             .filter_map(|line| line.ok())
             .map(|line| line.trim().to_owned())
             .collect(),
 
         _ => {
-            println!("Unable to load dictionary: {}", COMMAND.dict_path());
+            println!("Unable to load dictionary: {}", command.dict_path());
             std::process::exit(Error::Dictionary as i32);
         }
     }

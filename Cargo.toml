@@ -5,6 +5,5 @@ authors = ["J/A <archer884@gmail.com>"]
 
 [dependencies]
 getopts = "*"
-lazy_static = "*"
 num_cpus = "*"
 threadpool = "*"
