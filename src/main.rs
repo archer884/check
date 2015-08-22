@@ -20,6 +20,8 @@ use std::sync::Arc;
 use std::sync::mpsc;
 use threadpool::ThreadPool;
 
+type Sources = Vec<Vec<String>>;
+
 enum Error {
     Arguments = 1,
     Dictionary = 2,
@@ -46,7 +48,7 @@ pub fn main() {
     process_input_parallel(&mut input, &sources);
 }
 
-fn process_input_parallel<I: Iterator<Item=Line>>(input: &mut I, sources: &Arc<Vec<Vec<String>>>) {
+fn process_input_parallel<I: Iterator<Item=Line>>(input: &mut I, sources: &Arc<Sources>) {
     let pool = ThreadPool::new(num_cpus::get());
     let (tx, rx) = mpsc::channel();
 
@@ -80,7 +82,7 @@ fn process_input_parallel<I: Iterator<Item=Line>>(input: &mut I, sources: &Arc<V
     }
 }
 
-fn is_error(word: &str, sources: &Arc<Vec<Vec<String>>>) -> bool {
+fn is_error(word: &str, sources: &Arc<Sources>) -> bool {
     sources.iter().all(|source| source.binary_search(&word.to_lowercase()).is_err())
 }
 
