@@ -20,6 +20,8 @@ use std::sync::Arc;
 use std::sync::mpsc;
 use threadpool::ThreadPool;
 
+type Sources = Vec<Vec<String>>;
+
 enum Error {
     Arguments = 1,
     Dictionary = 2,
@@ -28,7 +30,7 @@ enum Error {
 
 pub fn main() {
     let command = Command::from_args();
-    let dictionary = Arc::new(load_dictionary(&command));
+    let sources = Arc::new(load_sources(&command));
 
     let mut input = match File::open(command.targ_path()).map(|file| BufReader::new(file)) {
         Ok(reader) => reader.lines()
@@ -43,27 +45,26 @@ pub fn main() {
         }
     };
 
-    process_input_parallel(&mut input, &dictionary);
+    process_input_parallel(&mut input, &sources);
 }
 
-fn process_input_parallel<I: Iterator<Item=Line>>(input: &mut I, dictionary: &Arc<Vec<String>>) {
+fn process_input_parallel<I: Iterator<Item=Line>>(input: &mut I, sources: &Arc<Sources>) {
     let pool = ThreadPool::new(num_cpus::get());
     let (tx, rx) = mpsc::channel();
 
     let mut work_pieces = 0;
     for line in input {
         let tx = tx.clone();
-        let dictionary = dictionary.clone();
+        let sources = sources.clone();
 
         work_pieces += 1;
         pool.execute(move || {
-            let errors = line.errors(|word| dictionary.binary_search(&word.to_lowercase()).is_err());
-
+            let errors = line.errors(|word| is_error(word, &sources));
             match errors.len() {
                 0 => tx.send(None).unwrap(),
                 _ => tx.send(Some(errors)).unwrap(),
             };
-        })
+        });
     }
 
     let mut count = 0;
@@ -81,7 +82,22 @@ fn process_input_parallel<I: Iterator<Item=Line>>(input: &mut I, dictionary: &Ar
     }
 }
 
-fn load_dictionary(command: &Command) -> Vec<String> {
+fn is_error(word: &str, sources: &Arc<Sources>) -> bool {
+    sources.iter().all(|source| source.binary_search(&word.to_lowercase()).is_err())
+}
+
+fn load_sources(command: &Command) -> Vec<Vec<String>> {
+    let mut sources = vec![load_sys_dict(command)];
+    if let Ok(reader) = File::open("./.spelling").map(|file| BufReader::new(file)) {
+        sources.push(reader.lines()
+            .filter_map(|line| line.ok())
+            .map(|line| line.trim().to_owned())
+            .collect());
+    }
+    sources
+}
+
+fn load_sys_dict(command: &Command) -> Vec<String> {
     match File::open(command.dict_path()).map(|file| BufReader::new(file)) {
         Ok(reader) => reader.lines()
             .filter_map(|line| line.ok())
