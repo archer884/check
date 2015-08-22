@@ -65,14 +65,15 @@ fn process_input_parallel<I: Iterator<Item=Line>>(input: &mut I, sources: &Sourc
         }));
     }
 
+    let errors = rx.iter()
+        .take(work_pieces)
+        .filter_map(|errors| errors)
+        .flat_map(|errors| errors.into_iter());
+
     let mut count = 0;
-    for _ in 0..work_pieces {
-        if let Some(errors) = rx.recv().unwrap() {
-            for error in errors.into_iter() {
-                count += 1;
-                println!("{}", error);
-            }
-        }
+    for error in errors {
+        count += 1;
+        println!("{}", error);
     }
 
     if count == 0 {
