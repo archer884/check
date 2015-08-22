@@ -58,12 +58,11 @@ fn process_input_parallel<I: Iterator<Item=Line>>(input: &mut I, sources: &Arc<V
         work_pieces += 1;
         pool.execute(move || {
             let errors = line.errors(|word| is_error(word, &sources));
-
             match errors.len() {
                 0 => tx.send(None).unwrap(),
                 _ => tx.send(Some(errors)).unwrap(),
             };
-        })
+        });
     }
 
     let mut count = 0;
