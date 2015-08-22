@@ -6,4 +6,6 @@ authors = ["J/A <archer884@gmail.com>"]
 [dependencies]
 getopts = "*"
 num_cpus = "*"
-threadpool = "*"
+
+[dependencies.scoped_threadpool]
+git = "https://github.com/Kimundi/scoped-threadpool-rs"

@@ -3,7 +3,7 @@
 
 extern crate getopts;
 extern crate num_cpus;
-extern crate threadpool;
+extern crate scoped_threadpool;
 
 mod command;
 mod input;
@@ -14,11 +14,10 @@ mod input;
 use command::Command;
 use input::Line;
 
+use scoped_threadpool::Pool;
 use std::fs::File;
 use std::io::{ BufRead, BufReader };
-use std::sync::Arc;
 use std::sync::mpsc;
-use threadpool::ThreadPool;
 
 type Sources = Vec<Vec<String>>;
 
@@ -30,7 +29,7 @@ enum Error {
 
 pub fn main() {
     let command = Command::from_args();
-    let sources = Arc::new(load_sources(&command));
+    let sources = load_sources(&command);
 
     let mut input = match File::open(command.targ_path()).map(|file| BufReader::new(file)) {
         Ok(reader) => reader.lines()
@@ -48,23 +47,22 @@ pub fn main() {
     process_input_parallel(&mut input, &sources);
 }
 
-fn process_input_parallel<I: Iterator<Item=Line>>(input: &mut I, sources: &Arc<Sources>) {
-    let pool = ThreadPool::new(num_cpus::get());
+fn process_input_parallel<I: Iterator<Item=Line>>(input: &mut I, sources: &Sources) {
+    let mut pool = Pool::new(num_cpus::get() as u32);
     let (tx, rx) = mpsc::channel();
 
     let mut work_pieces = 0;
     for line in input {
         let tx = tx.clone();
-        let sources = sources.clone();
 
         work_pieces += 1;
-        pool.execute(move || {
-            let errors = line.errors(|word| is_error(word, &sources));
+        pool.scoped(|scoped| scoped.execute(move || {
+            let errors = line.errors(|word| is_error(word, sources));
             match errors.len() {
                 0 => tx.send(None).unwrap(),
                 _ => tx.send(Some(errors)).unwrap(),
             };
-        });
+        }));
     }
 
     let mut count = 0;
@@ -82,7 +80,7 @@ fn process_input_parallel<I: Iterator<Item=Line>>(input: &mut I, sources: &Arc<S
     }
 }
 
-fn is_error(word: &str, sources: &Arc<Sources>) -> bool {
+fn is_error(word: &str, sources: &Sources) -> bool {
     sources.iter().all(|source| source.binary_search(&word.to_lowercase()).is_err())
 }
 
