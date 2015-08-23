@@ -24,7 +24,7 @@ impl Command {
             Ok(ref matches) if matches.free.len() == 1 => Command {
                 targ_path: matches.free[0].clone(),
                 dict_path: matches.opt_str("w").unwrap_or(DEFAULT_DICT_PATH.to_owned()),
-                with_lines: matches.opt_present("L"),
+                with_lines: matches.opt_present("l"),
             },
 
             Ok(_) | Err(_) => {

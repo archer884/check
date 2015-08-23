@@ -72,17 +72,12 @@ fn process_input_parallel<I>(command: &Command, input: &mut I, sources: &Sources
         .filter_map(|errors| errors)
         .flat_map(|errors| errors.into_iter());
 
-    let mut count = 0;
     for error in errors {
         count += 1;
         match command.with_lines() {
             true => println!("{}", error),
             false => println!("{}", error.content()),
         }
-    }
-
-    if count == 0 {
-        println!("No problems");
     }
 }
 
