@@ -6,12 +6,14 @@ extern crate num_cpus;
 extern crate scoped_threadpool;
 
 mod command;
+mod dictionary;
 mod input;
 
 #[cfg(test)] extern crate test;
 #[cfg(test)] mod bench;
 
 use command::Command;
+use dictionary::Dictionary;
 use input::Line;
 
 use scoped_threadpool::Pool;
@@ -19,7 +21,8 @@ use std::fs::File;
 use std::io::{ BufRead, BufReader };
 use std::sync::mpsc;
 
-type Sources = Vec<Vec<String>>;
+// Trait bounds are not (yet) enforced in type definitions:
+type Sources<S: Dictionary> = Vec<S>;
 
 enum Error {
     Arguments = 1,
@@ -47,8 +50,9 @@ pub fn main() {
     process_input_parallel(&command, &mut input, &sources);
 }
 
-fn process_input_parallel<I>(command: &Command, input: &mut I, sources: &Sources) where
-    I: Iterator<Item=Line>
+fn process_input_parallel<I, S>(command: &Command, input: &mut I, sources: &Sources<S>) where
+    I: Iterator<Item=Line>,
+    S: Dictionary
 {
     let mut pool = Pool::new(num_cpus::get() as u32);
     let (tx, rx) = mpsc::channel();
@@ -80,8 +84,8 @@ fn process_input_parallel<I>(command: &Command, input: &mut I, sources: &Sources
     }
 }
 
-fn is_error(word: &str, sources: &Sources) -> bool {
-    sources.iter().all(|source| source.binary_search(&word.to_lowercase()).is_err())
+fn is_error<S: Dictionary>(word: &str, sources: &Sources<S>) -> bool {
+    sources.iter().all(|source| !source.is_valid(&word.to_lowercase()))
 }
 
 fn load_sources(command: &Command) -> Vec<Vec<String>> {
