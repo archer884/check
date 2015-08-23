@@ -73,7 +73,6 @@ fn process_input_parallel<I>(command: &Command, input: &mut I, sources: &Sources
         .flat_map(|errors| errors.into_iter());
 
     for error in errors {
-        count += 1;
         match command.with_lines() {
             true => println!("{}", error),
             false => println!("{}", error.content()),
