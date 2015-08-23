@@ -32,6 +32,12 @@ pub struct Word {
     pub content: String,
 }
 
+impl Word {
+    pub fn content(&self) -> &str {
+        &self.content
+    }
+}
+
 impl fmt::Display for Word {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}:\t{}", self.number, self.content)

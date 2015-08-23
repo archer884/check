@@ -44,10 +44,12 @@ pub fn main() {
         }
     };
 
-    process_input_parallel(&mut input, &sources);
+    process_input_parallel(&command, &mut input, &sources);
 }
 
-fn process_input_parallel<I: Iterator<Item=Line>>(input: &mut I, sources: &Sources) {
+fn process_input_parallel<I>(command: &Command, input: &mut I, sources: &Sources) where
+    I: Iterator<Item=Line>
+{
     let mut pool = Pool::new(num_cpus::get() as u32);
     let (tx, rx) = mpsc::channel();
 
@@ -73,7 +75,10 @@ fn process_input_parallel<I: Iterator<Item=Line>>(input: &mut I, sources: &Sourc
     let mut count = 0;
     for error in errors {
         count += 1;
-        println!("{}", error);
+        match command.with_lines() {
+            true => println!("{}", error),
+            false => println!("{}", error.content()),
+        }
     }
 
     if count == 0 {
