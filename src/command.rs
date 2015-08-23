@@ -1,10 +1,10 @@
 use getopts::Options;
 
-#[cfg(unix)]
-const DEFAULT_DICT_PATH: &'static str = "/usr/share/dict/words";
-
 #[cfg(windows)]
 const DEFAULT_DICT_PATH: &'static str  = "C:\\Users\\ja\\Documents\\enable1.txt";
+
+#[cfg(not(windows))]
+const DEFAULT_DICT_PATH: &'static str = "/usr/share/dict/words";
 
 pub struct Command {
     targ_path: String,
@@ -16,7 +16,7 @@ impl Command {
     pub fn from_args() -> Command {
         let mut opts = Options::new();
         opts.optopt("w", "words", "set dictionary file path", "WORDS");
-        opts.optflag("p", "print", "print dictionary contents");
+        opts.optflag("p", "print", "print dictionary contents");    // this flag currently does exactly nothing
         opts.optflag("l", "lines", "print line numbers");
 
         let args: Vec<_> = ::std::env::args().collect();

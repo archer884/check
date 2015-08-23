@@ -101,10 +101,15 @@ fn load_sources(command: &Command) -> Vec<Vec<String>> {
 
 fn load_sys_dict(command: &Command) -> Vec<String> {
     match File::open(command.dict_path()).map(|file| BufReader::new(file)) {
-        Ok(reader) => reader.lines()
-            .filter_map(|line| line.ok())
-            .map(|line| line.trim().to_owned())
-            .collect(),
+        Ok(reader) => {
+            let mut dict: Vec<_> = reader.lines()
+                .filter_map(|line| line.ok())
+                .map(|line| line.trim().to_owned())
+                .collect();
+
+            dict.sort();
+            dict
+        },
 
         _ => {
             println!("Unable to load dictionary: {}", command.dict_path());
