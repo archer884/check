@@ -16,7 +16,8 @@ impl Dictionary for Vec<String> {
 }
 
 impl Dictionary for HashSet<String> {
-    fn init(&mut self) {}
+    fn init(&mut self) {
+    }
 
     fn is_valid(&self, word: &String) -> bool {
         self.contains(word)

@@ -1,29 +1,26 @@
-#![feature(test)]
-#![allow(unused_features)] // disables warning for unused test feature
+#[cfg_attr(test, feature(test))]
+#[cfg(test)] extern crate test;
+#[cfg(test)] mod bench;
 
 extern crate getopts;
-extern crate num_cpus;
-extern crate scoped_threadpool;
+extern crate rayon;
+
+use std::fs::File;
+use std::io::{BufRead, BufReader};
+
+use rayon::par_iter::{IntoParallelIterator, ParallelIterator};
 
 mod command;
 mod dictionary;
 mod input;
 
-#[cfg(test)]
-extern crate test;
-#[cfg(test)]mod bench;
-
 use command::Command;
 use dictionary::Dictionary;
 use input::Line;
 
-use scoped_threadpool::Pool;
-use std::fs::File;
-use std::io::{BufRead, BufReader};
-use std::sync::mpsc;
-
 // Trait bounds are not (yet) enforced in type definitions:
-type Sources<S: Dictionary> = Vec<S>;
+// type Sources<S: Dictionary> = Vec<S>;
+type Sources<S> = Vec<S>;
 
 enum Error {
     Arguments = 1,
@@ -35,56 +32,32 @@ pub fn main() {
     let command = Command::from_args();
     let sources = load_sources(&command);
 
-    let mut input = match File::open(command.targ_path()).map(|file| BufReader::new(file)) {
-        Ok(reader) => {
-            reader.lines()
-                  .filter_map(|l| l.ok())
-                  .enumerate()
-                  .filter(|&(_, ref s)| s.trim().len() > 0)
-                  .map(|source| Line::from_source(source))
-        }
+    let input: Vec<_> = match File::open(command.targ_path()).map(|file| BufReader::new(file)) {
+                            Ok(reader) => {
+                                reader.lines()
+                                      .filter_map(|l| l.ok())
+                                      .enumerate()
+                                      .filter(|&(_, ref s)| s.trim().len() > 0)
+                                      .map(|source| Line::from_source(source))
+                            }
 
-        _ => {
-            println!("Unable to load input: {}", command.targ_path());
-            std::process::exit(Error::Input as i32);
-        }
-    };
+                            _ => {
+                                println!("Unable to load input: {}", command.targ_path());
+                                std::process::exit(Error::Input as i32);
+                            }
+                        }
+                        .collect();
 
-    process_input_parallel(&command, &mut input, &sources);
-}
+    let mut errors = Vec::new();
+    input.into_par_iter()
+         .map(|line| line.errors(|word| is_error(word, &sources)))
+         .collect_into(&mut errors);
 
-fn process_input_parallel<I, S>(command: &Command, input: &mut I, sources: &Sources<S>)
-    where I: Iterator<Item = Line>,
-          S: Dictionary
-{
-    let mut pool = Pool::new(num_cpus::get() as u32);
-    let (tx, rx) = mpsc::channel();
-
-    let mut work_pieces = 0;
-    for line in input {
-        let tx = tx.clone();
-
-        work_pieces += 1;
-        pool.scoped(|scoped| {
-            scoped.execute(move || {
-                let errors = line.errors(|word| is_error(word, sources));
-                match errors.len() {
-                    0 => tx.send(None).unwrap(),
-                    _ => tx.send(Some(errors)).unwrap(),
-                };
-            })
-        });
-    }
-
-    let errors = rx.iter()
-                   .take(work_pieces)
-                   .filter_map(|errors| errors)
-                   .flat_map(|errors| errors.into_iter());
-
-    for error in errors {
-        match command.with_lines() {
-            true => println!("{}", error),
-            false => println!("{}", error.content()),
+    for error in errors.iter().flat_map(|errors| errors) {
+        if command.with_lines() {
+            println!("{}", error);
+        } else {
+            println!("{}", error.content());
         }
     }
 }
